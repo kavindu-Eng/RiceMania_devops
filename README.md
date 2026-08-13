@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ricemania
 
-## Getting Started
+Ordering site for Ricemania, a Sri Lankan rice and curry kitchen in Colombo.
+Customers browse the menu, build an order and follow it through the kitchen;
+staff manage the menu and move orders along from an admin panel.
 
-First, run the development server:
+Built with Next.js 16 (App Router), MongoDB via Mongoose, and Tailwind CSS v4.
+
+## Running locally
 
 ```bash
+npm install
+cp .env.example .env.local   # then fill in MONGODB_URI and JWT_SECRET
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The site runs on <http://localhost:3002>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable      | Purpose                                                     |
+| ------------- | ----------------------------------------------------------- |
+| `MONGODB_URI` | Mongo connection string (Atlas, local, or the compose host) |
+| `JWT_SECRET`  | Signs auth tokens — `openssl rand -base64 32`               |
 
-## Learn More
+## Creating the first admin
 
-To learn more about Next.js, take a look at the following resources:
+Registration always creates a customer account. To promote one to admin:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+node scripts/make-admin.mjs you@example.com
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Sign out and back in afterwards so the new role is picked up. Admins see an
+**Admin Panel** button in the header and land on `/admin` after signing in.
 
-## Deploy on Vercel
+## Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+app/
+├─ (site)/          public site — home, menu, checkout, orders, about, contact
+├─ admin/           admin panel — dashboard, orders, foods, categories
+├─ api/             route handlers (auth, foods, categories, cart, orders, upload)
+├─ components/      shared UI
+├─ lib/             API client, server-side data reads, formatting, types
+├─ models/          Mongoose schemas
+└─ providers/       auth, cart and toast context
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Food photos uploaded from the admin panel are written to `public/uploads`
+and served from `/uploads/...`. Dishes without a photo fall back to a
+generated illustration, so the menu never shows a broken image.
+
+## Availability
+
+The kitchen cooks to order, so dishes are not inventory-counted. Each dish is
+simply **serving** or **off today**, flipped from a switch on the admin menu
+table. A dish that is off shows as unavailable on the site and cannot be added
+to a cart or ordered — including one already sitting in someone's cart.
+
+## Order lifecycle
+
+`pending → approved → preparing → ready → completed`, with `cancelled`
+reachable from `pending` and `approved`. The admin UI only offers transitions
+the API allows.
+
+## Deploying
+
+```bash
+docker compose up --build
+```
+
+Compose reads `.env.local` from the host and keeps uploaded images in a
+named volume so they survive rebuilds.
+
+## Checks
+
+```bash
+npx tsc --noEmit    # types
+npm run lint        # eslint
+npm run build       # production build
+```
